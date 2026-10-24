@@ -1,0 +1,5 @@
+.env
+.spotify_token.json
+output/
+__pycache__/
+app.log

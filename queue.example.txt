@@ -1,0 +1,4 @@
+# One artist or URL per line. Optional "| N" sets the track count.
+Buffalo Tom | 20
+The Lemonheads
+https://www.musicianwages.com/most-popular-buffalo-tom-songs/

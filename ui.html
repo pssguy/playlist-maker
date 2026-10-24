@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Playlist Maker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --paper: #eef1f4;
+  --surface: #ffffff;
+  --ink: #1c2633;
+  --muted: #5b6878;
+  --rule: #c9d1da;
+  --mark: #f2c230;
+  --mark-ink: #1c2633;
+  --warn: #b3261e;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #141b24;
+    --surface: #1c2531;
+    --ink: #e7ecf2;
+    --muted: #93a0b0;
+    --rule: #2e3a49;
+    --mark: #f2c230;
+    --mark-ink: #141b24;
+    --warn: #ff8a80;
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: "Archivo", "Segoe UI", system-ui, sans-serif;
+  font-size: 16px;
+  line-height: 1.45;
+}
+main { max-width: 760px; margin: 0 auto; padding: 28px 20px 140px; }
+header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 24px; }
+header h1 { font-size: 15px; font-weight: 700; margin: 0; color: var(--muted); }
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--mark); outline-offset: 2px; }
+
+.linkish { background: none; border: 0; color: var(--muted); padding: 4px 0; text-decoration: underline; }
+
+.lookup { display: flex; gap: 8px; flex-wrap: wrap; }
+.lookup input[type=text] { flex: 1 1 320px; }
+.lookup input[type=number] { width: 90px; }
+input[type=text], input[type=number] {
+  background: var(--surface); border: 1px solid var(--rule); border-radius: 6px;
+  padding: 10px 12px;
+}
+.btn {
+  border: 1px solid var(--ink); background: var(--ink); color: var(--paper);
+  border-radius: 6px; padding: 10px 18px; font-weight: 650;
+}
+.btn:disabled { opacity: .45; cursor: default; }
+.btn.go { background: var(--mark); color: var(--mark-ink); border-color: var(--mark); }
+.hint { color: var(--muted); font-size: 14px; margin: 8px 0 0; }
+
+#status { min-height: 1.5em; margin: 18px 0 0; color: var(--muted); }
+#status.error { color: var(--warn); }
+
+#result[hidden], #done[hidden] { display: none; }
+
+.title-input {
+  display: block; width: 100%; margin: 28px 0 2px;
+  background: none; border: 0; border-bottom: 2px solid var(--rule); border-radius: 0;
+  padding: 4px 0 8px;
+  font-size: clamp(30px, 6vw, 46px); font-weight: 800; font-stretch: 72%;
+  line-height: 1.05; letter-spacing: -0.01em;
+}
+.title-input:focus { border-bottom-color: var(--mark); outline: none; }
+.meta { color: var(--muted); font-size: 14px; margin: 0 0 20px; }
+
+ol.tracks { list-style: none; margin: 0; padding: 0; counter-reset: t; }
+ol.tracks li {
+  counter-increment: t;
+  display: grid; grid-template-columns: 2.2em 44px 1fr auto; gap: 12px; align-items: center;
+  padding: 8px 0; border-bottom: 1px solid var(--rule);
+}
+ol.tracks li::before {
+  content: counter(t); text-align: right; font-stretch: 72%; font-weight: 700;
+  font-size: 20px; color: var(--muted); font-variant-numeric: tabular-nums;
+}
+.thumb { width: 44px; height: 44px; border-radius: 3px; background: var(--rule); object-fit: cover; }
+.song { min-width: 0; }
+.song strong { display: block; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.song span { display: block; color: var(--muted); font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.song em { font-style: italic; color: var(--muted); }
+.ctrls { display: flex; gap: 2px; }
+.ctrls button {
+  width: 34px; height: 34px; border: 1px solid transparent; border-radius: 6px;
+  background: none; color: var(--muted); font-size: 16px; line-height: 1;
+}
+.ctrls button:hover { border-color: var(--rule); color: var(--ink); }
+.ctrls button.del:hover { color: var(--warn); border-color: var(--warn); }
+.ctrls button:disabled { visibility: hidden; }
+
+.add { display: flex; gap: 8px; margin: 18px 0 0; flex-wrap: wrap; }
+.add input { flex: 1 1 260px; }
+.add .btn { background: none; color: var(--ink); }
+
+.missing { margin: 26px 0 0; font-size: 14px; color: var(--muted); }
+.missing h2 { font-size: 14px; font-weight: 700; margin: 0 0 4px; color: var(--ink); }
+.missing ul { margin: 0; padding-left: 18px; }
+.missing li button { margin-left: 6px; font-size: 13px; }
+
+.bar {
+  position: fixed; left: 0; right: 0; bottom: 0;
+  background: var(--surface); border-top: 1px solid var(--rule);
+  padding: 14px 20px calc(14px + env(safe-area-inset-bottom, 0px));
+}
+.bar-inner { max-width: 760px; margin: 0 auto; display: flex; gap: 16px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+.bar label { display: flex; gap: 8px; align-items: center; color: var(--muted); }
+
+#done { margin-top: 22px; padding: 14px 16px; border-left: 4px solid var(--mark); background: var(--surface); }
+#done a { color: inherit; font-weight: 650; }
+
+@media (prefers-reduced-motion: no-preference) {
+  ol.tracks li.gone { opacity: 0; transform: translateX(16px); transition: opacity .18s, transform .18s; }
+}
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Playlist Maker</h1>
+    <button class="linkish" id="quit" type="button">Quit</button>
+  </header>
+
+  <div class="lookup">
+    <input type="text" id="target" placeholder="Artist name, or a URL listing their songs" autocomplete="off" autofocus>
+    <input type="number" id="n" min="1" max="100" placeholder="20" aria-label="Number of songs" title="Number of songs (URLs: leave blank for all)">
+    <button class="btn" id="fetch" type="button">Get songs</button>
+  </div>
+  <p class="hint">Artist names use Deezer’s most-played list. For a URL, leave the number blank to take every song on the page.</p>
+
+  <p id="status" role="status"></p>
+
+  <section id="result" hidden>
+    <input class="title-input" id="name" aria-label="Playlist name">
+    <p class="meta" id="meta"></p>
+    <ol class="tracks" id="tracks"></ol>
+
+    <div class="add">
+      <input type="text" id="addTitle" placeholder="Add a song by this artist" autocomplete="off">
+      <button class="btn" id="addBtn" type="button">Add</button>
+    </div>
+
+    <div class="missing" id="missing" hidden>
+      <h2>Not found on Spotify</h2>
+      <ul id="missingList"></ul>
+    </div>
+
+    <div id="done" hidden></div>
+  </section>
+</main>
+
+<div class="bar" id="bar" hidden>
+  <div class="bar-inner">
+    <label><input type="checkbox" id="public" checked> Public playlist</label>
+    <button class="btn go" id="create" type="button">Create playlist</button>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+let state = null;   // {artist, source, target, template, rows, missing, requested, nameEdited}
+
+async function api(path, body) {
+  const r = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}) });
+  const data = await r.json().catch(() => ({ error: `Server returned ${r.status}` }));
+  if (!r.ok || data.error) throw new Error(data.error || `Server returned ${r.status}`);
+  return data;
+}
+
+function status(msg, isError) {
+  $("status").textContent = msg || "";
+  $("status").className = isError ? "error" : "";
+}
+
+function busy(on) {
+  for (const id of ["fetch", "create", "addBtn"]) $(id).disabled = on;
+}
+
+function el(tag, attrs, ...kids) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (k === "class") e.className = v; else if (k.startsWith("on")) e[k] = v; else e.setAttribute(k, v);
+  }
+  for (const k of kids) if (k != null) e.append(k);
+  return e;
+}
+
+function defaultName() {
+  return state.template.replace("{artist}", state.artist).replace("{count}", state.rows.length);
+}
+
+function render() {
+  if (!state.nameEdited) $("name").value = defaultName();
+  const n = state.rows.length;
+  $("meta").textContent = `${n} song${n === 1 ? "" : "s"}, from ${state.source}`;
+  $("create").textContent = `Create playlist (${n})`;
+
+  const ol = $("tracks");
+  ol.replaceChildren();
+  state.rows.forEach((r, i) => {
+    const differs = r.requested && r.name && r.requested.toLowerCase() !== r.name.toLowerCase();
+    const sub = el("span", {}, [r.album, r.year].filter(Boolean).join(", "));
+    if (differs) sub.append(" ", el("em", {}, `(listed as “${r.requested}”)`));
+    const li = el("li", {},
+      r.image ? el("img", { class: "thumb", src: r.image, alt: "" }) : el("div", { class: "thumb" }),
+      el("div", { class: "song" }, el("strong", {}, r.name), sub),
+      el("div", { class: "ctrls" },
+        el("button", { type: "button", "aria-label": `Move ${r.name} up`, title: "Move up", onclick: () => move(i, -1) }, "↑"),
+        el("button", { type: "button", "aria-label": `Move ${r.name} down`, title: "Move down", onclick: () => move(i, 1) }, "↓"),
+        el("button", { type: "button", class: "del", "aria-label": `Remove ${r.name}`, title: "Remove", onclick: e => remove(i, e) }, "✕"))
+    );
+    ol.append(li);
+    const btns = li.querySelectorAll(".ctrls button");
+    btns[0].disabled = i === 0;
+    btns[1].disabled = i === n - 1;
+  });
+
+  const missing = state.missing;
+  $("missing").hidden = missing.length === 0;
+  $("missingList").replaceChildren(...missing.map((t, i) =>
+    el("li", {}, t, el("button", { type: "button", class: "linkish", onclick: () => { state.missing.splice(i, 1); render(); } }, "dismiss"))));
+  $("create").disabled = n === 0;
+}
+
+function move(i, dir) {
+  const j = i + dir;
+  [state.rows[i], state.rows[j]] = [state.rows[j], state.rows[i]];
+  render();
+}
+
+function remove(i, e) {
+  const li = e.target.closest("li");
+  li.classList.add("gone");
+  setTimeout(() => { state.rows.splice(i, 1); render(); }, matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 180);
+}
+
+async function lookup() {
+  const target = $("target").value.trim();
+  if (!target) { status("Enter an artist name or a URL.", true); return; }
+  busy(true);
+  $("done").hidden = true;
+  status(target.startsWith("http") ? "Reading the page and matching songs on Spotify. This takes about 20 seconds." :
+                                     "Getting the most-played songs and matching them on Spotify. This takes about 20 seconds.");
+  try {
+    const d = await api("/api/lookup", { target, n: $("n").value });
+    state = {
+      artist: d.artist, source: d.source, target: d.target, template: d.template, nameEdited: false,
+      rows: d.rows.filter(r => r.uri),
+      missing: d.rows.filter(r => !r.uri).map(r => r.requested),
+      requested: d.rows.map(r => r.requested),
+    };
+    state.unmatchedAtStart = [...state.missing];
+    $("result").hidden = false;
+    $("bar").hidden = false;
+    render();
+    status("");
+  } catch (err) {
+    status(err.message, true);
+  } finally {
+    busy(false);
+  }
+}
+
+async function addSong() {
+  const title = $("addTitle").value.trim();
+  if (!title || !state) return;
+  busy(true);
+  status(`Looking for “${title}” on Spotify…`);
+  try {
+    const r = await api("/api/add", { title, artist: state.artist });
+    if (!r.uri) { status(`“${title}” by ${state.artist} isn’t on Spotify, or the title doesn’t match. Check the spelling.`, true); return; }
+    if (state.rows.some(x => x.uri === r.uri)) { status(`“${r.name}” is already in the list.`); return; }
+    state.rows.push(r);
+    $("addTitle").value = "";
+    status(`Added “${r.name}”.`);
+    render();
+  } catch (err) {
+    status(err.message, true);
+  } finally {
+    busy(false);
+  }
+}
+
+async function create(force) {
+  if (!state || !state.rows.length) return;
+  busy(true);
+  status("Creating the playlist…");
+  try {
+    const body = {
+      name: $("name").value.trim(), public: $("public").checked, force: !!force,
+      artist: state.artist, source: state.source, target: state.target,
+      tracks: state.rows, requested: state.requested, unmatched: state.unmatchedAtStart,
+    };
+    const d = await api("/api/create", body);
+    if (d.exists) {
+      busy(false);
+      status("");
+      if (confirm(`You already have a playlist called “${body.name}”. Create another one with the same name?\n\nOr press Cancel and change the name.`)) return create(true);
+      $("name").focus();
+      return;
+    }
+    status("");
+    $("done").replaceChildren("Playlist created with ", String(d.count), " songs: ",
+      el("a", { href: d.url, target: "_blank", rel: "noopener" }, "open it in Spotify"), ".");
+    $("done").hidden = false;
+    $("done").scrollIntoView({ behavior: "smooth", block: "nearest" });
+  } catch (err) {
+    status(err.message, true);
+  } finally {
+    busy(false);
+  }
+}
+
+$("fetch").onclick = lookup;
+$("target").addEventListener("keydown", e => { if (e.key === "Enter") lookup(); });
+$("n").addEventListener("keydown", e => { if (e.key === "Enter") lookup(); });
+$("addBtn").onclick = addSong;
+$("addTitle").addEventListener("keydown", e => { if (e.key === "Enter") addSong(); });
+$("name").addEventListener("input", () => { state.nameEdited = true; });
+$("create").onclick = () => create(false);
+$("quit").onclick = async () => {
+  try { await api("/api/quit"); } catch (_) {}
+  document.body.replaceChildren(el("main", {}, el("p", {}, "Playlist Maker has stopped. You can close this tab.")));
+};
+</script>
+</body>
+</html>
